@@ -641,6 +641,7 @@ def open_login_window():
         if result:
             user_role = result["role"]
             if user_role == "cashier":
+                tabs.hide(dashboard_tab)
                 tabs.hide(products_tab)
                 tabs.hide(customers_tab)
                 tabs.hide(sales_tab)
@@ -678,6 +679,15 @@ def load_logo(tab):
     tab.small_logo = small_logo
     ttk.Label(logo_frame, image=small_logo).grid(row=0, column=1, padx=0, pady=0)
 
+def on_mousewheel(event):
+    dashboard_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
+def on_tab_change(event):
+    selected_tab = event.widget.nametowidget(event.widget.select())
+    if selected_tab == dashboard_tab:
+        dashboard_canvas.bind("<MouseWheel>", on_mousewheel)
+    else:
+        dashboard_canvas.unbind("<MouseWheel>")
 
 '''=========================GRAPHICAL USER INTERFACE========================='''
 
@@ -693,12 +703,14 @@ role = None
 tabs = ttk.Notebook(master, style="tabs.TNotebook")  # Make tabs
 tabs.pack(fill="both", expand=True)  # fill in both directions and move correctly while resizing window.
 
+dashboard_tab = ttk.Frame(tabs)
 input_sale_tab = ttk.Frame(tabs)
 products_tab = ttk.Frame(tabs)
 customers_tab = ttk.Frame(tabs)
 sales_tab = ttk.Frame(tabs)
 profile_tab = ttk.Frame(tabs)
 
+tabs.add(dashboard_tab, text="    Dashboard    ")
 tabs.add(input_sale_tab, text="   Input Sale   ")
 tabs.add(products_tab, text="     Products    ")
 tabs.add(customers_tab, text="    Customers    ")
@@ -724,6 +736,45 @@ style.configure("products_table.Treeview.Heading", font=("Inter", 16, "bold"), f
 cursor.execute("SELECT product_name FROM products WHERE is_deleted = 0")
 rows = cursor.fetchall()
 products = [row["product_name"] for row in rows]
+
+
+'''=========================DASHBOARD TAB========================='''
+
+dashboard_canvas = tk.Canvas(dashboard_tab)
+dashboard_canvas.pack(side="left", fill="both", expand=True)
+
+dashboard_scroll = ttk.Scrollbar(
+    dashboard_tab,
+    orient="vertical",
+    command=dashboard_canvas.yview
+)
+dashboard_scroll.pack(side="right", fill="y")
+
+dashboard_canvas.configure(yscrollcommand=dashboard_scroll.set)
+
+dashboard_frame = ttk.Frame(dashboard_canvas)
+
+dashboard_canvas_window = dashboard_canvas.create_window(
+    (0, 0),
+    window=dashboard_frame,
+    anchor="nw"
+)
+
+def update_scrollregion(event):
+    dashboard_canvas.configure(scrollregion=dashboard_canvas.bbox("all"))
+
+dashboard_frame.bind("<Configure>", update_scrollregion)
+tabs.bind("<<NotebookTabChanged>>", on_tab_change)
+
+
+
+for i in range(40):
+    ttk.Label(
+        dashboard_frame,
+        text=f"Dashboard item {i + 1}",
+        padding=10
+    ).pack(fill="x")
+
 
 '''=========================INPUT SALE TAB========================='''
 

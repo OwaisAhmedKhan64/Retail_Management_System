@@ -79,7 +79,7 @@ def update_grand_total():
     for record in sale_table.get_children():
         total_price = float(sale_table.item(record)['values'][3])
         total += total_price
-    grand_total_value.set(f"{total:.0f}")
+    grand_total_value.set(f"{total:.0f} PKR")
 
 
 def confirm_product():
@@ -208,7 +208,7 @@ def confirm_sale():
         refresh_products_table()
         refresh_customers_table()
         refresh_sales_table()
-        grand_total_value.set("0")
+        grand_total_value.set(f"{0} PKR")
 
         messagebox.showinfo("Sale Confirmed", f"Sale ID {sale_id} has been recorded successfully!")
 
@@ -362,6 +362,8 @@ def add_new_product():
             selling_price = float(selling_price)
             quantity = int(quantity)
             cost_price = float(cost_price)
+            adding_date = datetime.datetime.now()
+            adding_date = adding_date.strftime("%d-%m-%Y %H:%M:%S")
         except ValueError:
             messagebox.showerror("Error", "Invalid number format!")
             return
@@ -370,6 +372,11 @@ def add_new_product():
             cursor.execute(
                 "INSERT INTO products (product_name, product_quantity, selling_price, cost_price) VALUES (?, ?, ?, ?)",
                 (name, quantity, selling_price, cost_price)
+            )
+            product_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO restocks (product_id, quantity_added, cost_price_at_restock, restock_date) VALUES (?, ?, ?, ?)",
+                (product_id, quantity, cost_price, adding_date)
             )
             connection.commit()
             refresh_products_table()
@@ -681,7 +688,7 @@ master.state("zoomed")
 
 role = None
 
-open_login_window()
+#open_login_window()
 
 tabs = ttk.Notebook(master, style="tabs.TNotebook")  # Make tabs
 tabs.pack(fill="both", expand=True)  # fill in both directions and move correctly while resizing window.
@@ -702,6 +709,7 @@ tabs.add(profile_tab, text="     Profile     ")
 style = ttk.Style()
 style.configure("tabs.TNotebook.Tab", font=("Inter", 20))
 style.configure("labels.TLabel", font=("Inter", 16))
+style.configure("heading_labels.TLabel", font=("Inter", 16, "bold"))
 style.configure("grand_total_label.TLabel", font=("Inter", 20, "bold"), foreground="white", background="#3498DB")
 style.configure("entries.TEntry", font=("Inter", 16))
 style.configure("buttons.TButton", font=("Inter", 16))
@@ -709,9 +717,9 @@ style.configure("sale_input_frame.TFrame", font=("Inter", 16), background="light
 style.configure("sale_table_frame.TFrame", font=("Inter", 16), background="white")
 style.configure("sale_result_frame.TFrame", font=("Inter", 16), background="#3498DB")
 style.configure("sale_table.Treeview", font=("Inter", 14), rowheight=30)
-style.configure("sale_table.Treeview.Heading", font=("Inter", 18))
-style.configure("products_table.Treeview", font=("Inter", 14), rowheight=30)
-style.configure("products_table.Treeview.Heading", font=("Inter", 16))
+style.configure("sale_table.Treeview.Heading", font=("Inter", 18, "bold"), foreground="#3498DB")
+style.configure("products_table.Treeview", font=("Inter", 14), rowheight=30, borderwidth=1, relief="solid")
+style.configure("products_table.Treeview.Heading", font=("Inter", 16, "bold"), foreground="#3498DB", borderwidth=1, relief="solid")
 
 cursor.execute("SELECT product_name FROM products WHERE is_deleted = 0")
 rows = cursor.fetchall()
@@ -724,10 +732,10 @@ popup = None
 listbox = None
 
 grand_total_value = tk.StringVar()
-grand_total_value.set("0")
+grand_total_value.set(f"{0} PKR")
 
 sale_input_frame = ttk.Frame(input_sale_tab, style="sale_input_frame.TFrame")
-sale_input_frame.place(x=0, y=150, width="760", height="300")
+sale_input_frame.place(x=0, y=150, width="758", height="300")
 sale_input_frame.grid_rowconfigure(1, minsize=40)
 
 ttk.Label(sale_input_frame, text="Customer Contact", style="labels.TLabel").grid(row=0, column=0, padx=5, pady=5)
@@ -748,7 +756,7 @@ ttk.Button(sale_input_frame, text="Confirm Product", style="buttons.TButton", co
                                                                                                             pady=5)
 
 sale_result_frame = ttk.Frame(input_sale_tab, style="sale_result_frame.TFrame")
-sale_result_frame.place(x=766, y=570, width="600", height="80")
+sale_result_frame.place(x=760, y=571, width="600", height="80")
 
 ttk.Label(sale_result_frame, text="Grand Total:", style="grand_total_label.TLabel").pack(side="left", anchor="w",
                                                                                          padx=10)
@@ -760,7 +768,7 @@ ttk.Button(sale_result_frame, text="Finish Sale", style="buttons.TButton", comma
                                                                                                       padx=10, pady=5)
 
 sale_table_frame = ttk.Frame(input_sale_tab, style="sale_table_frame.TFrame")
-sale_table_frame.place(x=766, y=0, width="600", height="570")
+sale_table_frame.place(x=760, y=0, width="600", height="570")
 
 sale_table = ttk.Treeview(sale_table_frame,
                           columns=("product_name", "quantity_bought", "price_per_unit", "total_price"),
@@ -771,11 +779,19 @@ sale_table.heading("product_name", text="Product Name")
 sale_table.heading("quantity_bought", text="Qty")
 sale_table.heading("price_per_unit", text="Price")
 sale_table.heading("total_price", text="Total Price")
-sale_table.column("product_name", width=290)
+sale_table.column("product_name", width=273)
 sale_table.column("quantity_bought", width=65)
 sale_table.column("price_per_unit", width=110)
 sale_table.column("total_price", width=135)
-sale_table.pack(fill="both", expand=True)
+sale_table.pack(side="left", fill="both", expand=True)
+
+sale_scroll = ttk.Scrollbar(
+    sale_table_frame,
+    orient="vertical",
+    command=sale_table.yview
+)
+sale_scroll.pack(side="right", fill="y")
+sale_table.configure(yscrollcommand=sale_scroll.set)
 
 load_logo(input_sale_tab)
 
@@ -809,7 +825,7 @@ ttk.Button(products_buttons_frame, text="Restock Product", style="buttons.TButto
 
 products_name_frame = ttk.Frame(products_tab)
 products_name_frame.place(x=600, y=0, width="760", height="30")
-ttk.Label(products_name_frame, text="Products", style="labels.TLabel").grid(row=0, column=0, padx=350, pady=0)
+ttk.Label(products_name_frame, text="Products", style="heading_labels.TLabel").grid(row=0, column=0, padx=350, pady=0)
 
 products_table_frame = ttk.Frame(products_tab, style="sale_input_frame.TFrame")
 products_table_frame.place(x=600, y=30, width="760", height="624")
@@ -827,8 +843,8 @@ products_table.heading("cost_price", text="Unit Cost Price")
 products_table.column("product_id", width=56)
 products_table.column("product_name", width=266)
 products_table.column("product_quantity", width=70)
-products_table.column("selling_price", width=184)
-products_table.column("cost_price", width=172)
+products_table.column("selling_price", width=180)
+products_table.column("cost_price", width=168)
 products_table.pack(side="left", fill="both", expand=True)
 
 products_scroll = ttk.Scrollbar(
@@ -847,7 +863,7 @@ load_logo(products_tab)
 
 customers_name_frame = ttk.Frame(customers_tab)
 customers_name_frame.place(x=600, y=0, width="760", height="30")
-ttk.Label(customers_name_frame, text="Customers", style="labels.TLabel").grid(row=0, column=0, padx=350, pady=0)
+ttk.Label(customers_name_frame, text="Customers", style="heading_labels.TLabel").grid(row=0, column=0, padx=350, pady=0)
 
 customers_table_frame = ttk.Frame(customers_tab, style="sale_input_frame.TFrame")
 customers_table_frame.place(x=600, y=30, width="760", height="624")
@@ -884,7 +900,7 @@ load_logo(customers_tab)
 
 sales_name_frame = ttk.Frame(sales_tab)
 sales_name_frame.place(x=600, y=0, width="760", height="30")
-ttk.Label(sales_name_frame, text="Sales", style="labels.TLabel").grid(row=0, column=0, padx=350, pady=0)
+ttk.Label(sales_name_frame, text="Sales", style="heading_labels.TLabel").grid(row=0, column=0, padx=350, pady=0)
 
 sales_table_frame = ttk.Frame(sales_tab, style="sale_input_frame.TFrame")
 sales_table_frame.place(x=600, y=30, width="760", height="624")

@@ -1,1 +1,0 @@
-ALTER TABLE products ADD COLUMN is_deleted TINYINT(1) DEFAULT 0;

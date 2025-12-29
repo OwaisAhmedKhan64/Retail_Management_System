@@ -1032,7 +1032,7 @@ ttk.Label(sale_result_frame, text="Grand Total:", style="grand_total_label.TLabe
 ttk.Label(sale_result_frame, textvariable=grand_total_value, style="grand_total_label.TLabel").pack(side="left",
                                                                                                     anchor="w")
 
-ttk.Button(sale_result_frame, text="Finish Sale", style="buttons.TButton", command=confirm_sale).pack(side="right",
+ttk.Button(sale_result_frame, text="Checkout", style="buttons.TButton", command=confirm_sale).pack(side="right",
                                                                                                       anchor="e",
                                                                                                       padx=10, pady=5)
 

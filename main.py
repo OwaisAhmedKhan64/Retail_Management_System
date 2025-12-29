@@ -138,7 +138,7 @@ def confirm_sale():
         customer_contact = customer_contact_entry.get().strip()
 
         sale_date = datetime.datetime.now()
-        sale_date = sale_date.strftime("%d-%m-%Y %H:%M:%S")
+        sale_date = sale_date.strftime("%Y-%m-%d %H:%M:%S")
         sale_revenue = 0
         sale_profit = 0
 
@@ -324,6 +324,60 @@ def search_product():
                                       record["selling_price"], record["cost_price"]])
 
 
+def search_customer():
+    selected_field = customers_fields.get().strip()
+    term = search_customer_entry.get().strip()
+
+    if not selected_field or not term:
+        messagebox.showerror("Error", "Select a field and enter a search term")
+        refresh_customers_table()
+        return
+
+    field_mapping = {
+        "Customer ID": "customer_id",
+        "Customer Contact": "customer_contact"
+    }
+
+    field = field_mapping[selected_field]
+
+    query = f"""
+    SELECT 
+        customers.customer_id,
+        customers.customer_contact,
+        (
+            SELECT sale_revenue 
+            FROM sales 
+            WHERE sales.customer_id = customers.customer_id
+            ORDER BY sale_date DESC
+            LIMIT 1
+        ) AS sale_revenue,
+        (
+            SELECT sale_date 
+            FROM sales 
+            WHERE sales.customer_id = customers.customer_id
+            ORDER BY sale_date DESC
+            LIMIT 1
+        ) AS sale_date
+    FROM customers
+    WHERE customers.{field} = ?
+    """
+
+    cursor.execute(query, (term,))
+
+    records = cursor.fetchall()
+    # clear table
+    for row in customers_table.get_children():
+        customers_table.delete(row)
+
+    # insert new rows
+    for record in records:
+        customers_table.insert("", "end",
+                               values=[record["customer_id"],
+                                       record["customer_contact"],
+                                       record["sale_revenue"],
+                                       record["sale_date"]])
+
+
 def add_new_product():
     # Create a popup window
     add_win = tk.Toplevel(master)
@@ -363,7 +417,7 @@ def add_new_product():
             quantity = int(quantity)
             cost_price = float(cost_price)
             adding_date = datetime.datetime.now()
-            adding_date = adding_date.strftime("%d-%m-%Y %H:%M:%S")
+            adding_date = adding_date.strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
             messagebox.showerror("Error", "Invalid number format!")
             return
@@ -584,7 +638,7 @@ def restock_product():
                            (quantity_added, product_id))
 
             restock_time = datetime.datetime.now()
-            restock_time = restock_time.strftime("%d-%m-%Y %H:%M:%S")
+            restock_time = restock_time.strftime("%Y-%m-%d %H:%M:%S")
             # insert into restock table
             cursor.execute(
                 "INSERT INTO restocks (product_id, quantity_added, cost_price_at_restock, restock_date) VALUES (?, ?, ?, ?)",
@@ -602,6 +656,219 @@ def restock_product():
 
     ttk.Button(restock_win, text="Next", style="buttons.TButton",
                command=process_restock).grid(row=3, column=1, padx=10, pady=20)
+
+
+def todays_customers():
+    today = datetime.datetime.now()
+
+    start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    start_date = start_date.strftime("%Y-%m-%d %H:%M:%S")
+    end_date = today.strftime("%Y-%m-%d %H:%M:%S")
+
+    query = """
+            SELECT 
+                c.customer_id,
+                c.customer_contact,
+                (
+                    SELECT s.sale_date
+                    FROM sales s
+                    WHERE s.customer_id = c.customer_id
+                      AND s.sale_date BETWEEN ? AND ?
+                    ORDER BY s.sale_date DESC
+                    LIMIT 1
+                ) AS sale_date,
+                (
+                    SELECT s.sale_revenue
+                    FROM sales s
+                    WHERE s.customer_id = c.customer_id
+                      AND s.sale_date BETWEEN ? AND ?
+                    ORDER BY s.sale_date DESC
+                    LIMIT 1
+                ) AS sale_revenue
+            FROM customers c
+            WHERE c.customer_id IN (
+                SELECT customer_id 
+                FROM sales 
+                WHERE sale_date BETWEEN ? AND ?
+            )
+            """
+
+    cursor.execute(query, (start_date, end_date, start_date, end_date, start_date, end_date))
+    records = cursor.fetchall()
+
+
+    for row in customers_table.get_children():
+        customers_table.delete(row)
+
+    for record in records:
+        customers_table.insert("", "end",
+                               values=[
+                                   record["customer_id"],
+                                   record["customer_contact"],
+                                   record["sale_revenue"],
+                                   record["sale_date"]
+                               ])
+
+
+def weeks_customers():
+    today = datetime.datetime.now()
+
+    start_of_week = today - datetime.timedelta(days=today.weekday())
+    start_date = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    start_date = start_date.strftime("%Y-%m-%d %H:%M:%S")
+    end_date = today.strftime("%Y-%m-%d %H:%M:%S")
+
+    query = """
+        SELECT 
+            c.customer_id,
+            c.customer_contact,
+            (
+                SELECT s.sale_date
+                FROM sales s
+                WHERE s.customer_id = c.customer_id
+                  AND s.sale_date BETWEEN ? AND ?
+                ORDER BY s.sale_date DESC
+                LIMIT 1
+            ) AS sale_date,
+            (
+                SELECT s.sale_revenue
+                FROM sales s
+                WHERE s.customer_id = c.customer_id
+                  AND s.sale_date BETWEEN ? AND ?
+                ORDER BY s.sale_date DESC
+                LIMIT 1
+            ) AS sale_revenue
+        FROM customers c
+        WHERE c.customer_id IN (
+            SELECT customer_id 
+            FROM sales 
+            WHERE sale_date BETWEEN ? AND ?
+        )
+        """
+
+    cursor.execute(query, (start_date, end_date, start_date, end_date, start_date, end_date))
+    records = cursor.fetchall()
+
+    for row in customers_table.get_children():
+        customers_table.delete(row)
+
+    for record in records:
+        customers_table.insert("", "end",
+                               values=[
+                                   record["customer_id"],
+                                   record["customer_contact"],
+                                   record["sale_revenue"],
+                                   record["sale_date"]
+                               ])
+
+
+
+def months_customers():
+    today = datetime.datetime.now()
+    first_day_this_month = today.replace(day=1)
+
+    start_date = first_day_this_month.strftime("%Y-%m-%d %H:%M:%S")
+    end_date = today.strftime("%Y-%m-%d %H:%M:%S")
+
+    query = """
+    SELECT 
+        c.customer_id,
+        c.customer_contact,
+        (
+            SELECT s.sale_date
+            FROM sales s
+            WHERE s.customer_id = c.customer_id
+              AND s.sale_date BETWEEN ? AND ?
+            ORDER BY s.sale_date DESC
+            LIMIT 1
+        ) AS sale_date,
+        (
+            SELECT s.sale_revenue
+            FROM sales s
+            WHERE s.customer_id = c.customer_id
+              AND s.sale_date BETWEEN ? AND ?
+            ORDER BY s.sale_date DESC
+            LIMIT 1
+        ) AS sale_revenue
+    FROM customers c
+    WHERE c.customer_id IN (
+        SELECT customer_id 
+        FROM sales 
+        WHERE sale_date BETWEEN ? AND ?
+    )
+    """
+
+    cursor.execute(query, (start_date, end_date, start_date, end_date, start_date, end_date))
+    records = cursor.fetchall()
+
+    # Clear current rows
+    for row in customers_table.get_children():
+        customers_table.delete(row)
+
+    # Insert filtered rows
+    for record in records:
+        customers_table.insert("", "end",
+                               values=[
+                                   record["customer_id"],
+                                   record["customer_contact"],
+                                   record["sale_revenue"],
+                                   record["sale_date"]
+                               ])
+
+
+def years_customers():
+    today = datetime.datetime.now()
+    first_day_this_year = today.replace(month=1, day=1, hour=0, minute=0, second=0)
+
+    start_date = first_day_this_year.strftime("%Y-%m-%d %H:%M:%S")
+    end_date = today.strftime("%Y-%m-%d %H:%M:%S")
+
+    query = """
+        SELECT 
+            c.customer_id,
+            c.customer_contact,
+            (
+                SELECT s.sale_date
+                FROM sales s
+                WHERE s.customer_id = c.customer_id
+                  AND s.sale_date BETWEEN ? AND ?
+                ORDER BY s.sale_date DESC
+                LIMIT 1
+            ) AS sale_date,
+            (
+                SELECT s.sale_revenue
+                FROM sales s
+                WHERE s.customer_id = c.customer_id
+                  AND s.sale_date BETWEEN ? AND ?
+                ORDER BY s.sale_date DESC
+                LIMIT 1
+            ) AS sale_revenue
+        FROM customers c
+        WHERE c.customer_id IN (
+            SELECT customer_id 
+            FROM sales 
+            WHERE sale_date BETWEEN ? AND ?
+        )
+        """
+
+    cursor.execute(query, (start_date, end_date, start_date, end_date, start_date, end_date))
+    records = cursor.fetchall()
+
+    # Clear current rows
+    for row in customers_table.get_children():
+        customers_table.delete(row)
+
+    # Insert filtered rows
+    for record in records:
+        customers_table.insert("", "end",
+                               values=[
+                                   record["customer_id"],
+                                   record["customer_contact"],
+                                   record["sale_revenue"],
+                                   record["sale_date"]
+                               ])
 
 
 def open_login_window():
@@ -641,7 +908,6 @@ def open_login_window():
         if result:
             user_role = result["role"]
             if user_role == "cashier":
-                tabs.hide(dashboard_tab)
                 tabs.hide(products_tab)
                 tabs.hide(customers_tab)
                 tabs.hide(sales_tab)
@@ -652,6 +918,7 @@ def open_login_window():
 
             login_window.destroy()
             master.state("zoomed")
+            tabs.select(input_sale_tab)
         else:
             messagebox.showerror("Error", "Invalid username or password")
 
@@ -679,15 +946,6 @@ def load_logo(tab):
     tab.small_logo = small_logo
     ttk.Label(logo_frame, image=small_logo).grid(row=0, column=1, padx=0, pady=0)
 
-def on_mousewheel(event):
-    dashboard_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-
-def on_tab_change(event):
-    selected_tab = event.widget.nametowidget(event.widget.select())
-    if selected_tab == dashboard_tab:
-        dashboard_canvas.bind("<MouseWheel>", on_mousewheel)
-    else:
-        dashboard_canvas.unbind("<MouseWheel>")
 
 '''=========================GRAPHICAL USER INTERFACE========================='''
 
@@ -698,19 +956,17 @@ master.state("zoomed")
 
 role = None
 
-#open_login_window()
+open_login_window()
 
 tabs = ttk.Notebook(master, style="tabs.TNotebook")  # Make tabs
 tabs.pack(fill="both", expand=True)  # fill in both directions and move correctly while resizing window.
 
-dashboard_tab = ttk.Frame(tabs)
 input_sale_tab = ttk.Frame(tabs)
 products_tab = ttk.Frame(tabs)
 customers_tab = ttk.Frame(tabs)
 sales_tab = ttk.Frame(tabs)
 profile_tab = ttk.Frame(tabs)
 
-tabs.add(dashboard_tab, text="    Dashboard    ")
 tabs.add(input_sale_tab, text="   Input Sale   ")
 tabs.add(products_tab, text="     Products    ")
 tabs.add(customers_tab, text="    Customers    ")
@@ -731,50 +987,12 @@ style.configure("sale_result_frame.TFrame", font=("Inter", 16), background="#349
 style.configure("sale_table.Treeview", font=("Inter", 14), rowheight=30)
 style.configure("sale_table.Treeview.Heading", font=("Inter", 18, "bold"), foreground="#3498DB")
 style.configure("products_table.Treeview", font=("Inter", 14), rowheight=30, borderwidth=1, relief="solid")
-style.configure("products_table.Treeview.Heading", font=("Inter", 16, "bold"), foreground="#3498DB", borderwidth=1, relief="solid")
+style.configure("products_table.Treeview.Heading", font=("Inter", 16, "bold"), foreground="#3498DB", borderwidth=1,
+                relief="solid")
 
 cursor.execute("SELECT product_name FROM products WHERE is_deleted = 0")
 rows = cursor.fetchall()
 products = [row["product_name"] for row in rows]
-
-
-'''=========================DASHBOARD TAB========================='''
-
-dashboard_canvas = tk.Canvas(dashboard_tab)
-dashboard_canvas.pack(side="left", fill="both", expand=True)
-
-dashboard_scroll = ttk.Scrollbar(
-    dashboard_tab,
-    orient="vertical",
-    command=dashboard_canvas.yview
-)
-dashboard_scroll.pack(side="right", fill="y")
-
-dashboard_canvas.configure(yscrollcommand=dashboard_scroll.set)
-
-dashboard_frame = ttk.Frame(dashboard_canvas)
-
-dashboard_canvas_window = dashboard_canvas.create_window(
-    (0, 0),
-    window=dashboard_frame,
-    anchor="nw"
-)
-
-def update_scrollregion(event):
-    dashboard_canvas.configure(scrollregion=dashboard_canvas.bbox("all"))
-
-dashboard_frame.bind("<Configure>", update_scrollregion)
-tabs.bind("<<NotebookTabChanged>>", on_tab_change)
-
-
-
-for i in range(40):
-    ttk.Label(
-        dashboard_frame,
-        text=f"Dashboard item {i + 1}",
-        padding=10
-    ).pack(fill="x")
-
 
 '''=========================INPUT SALE TAB========================='''
 
@@ -863,7 +1081,7 @@ ttk.Button(search_product_frame, text="Search", style="buttons.TButton",
            command=search_product).grid(row=1, column=3, padx=5, pady=10)
 
 products_buttons_frame = ttk.Frame(products_tab, style="sale_input_frame.TFrame")
-products_buttons_frame.place(x=60, y=280, width="410", height="150")
+products_buttons_frame.place(x=60, y=280, width="410", height="200")
 
 ttk.Button(products_buttons_frame, text="Add New Product", style="buttons.TButton",
            command=add_new_product).grid(row=0, column=0, padx=20, pady=20)
@@ -873,6 +1091,8 @@ ttk.Button(products_buttons_frame, text="Edit Product", style="buttons.TButton",
            command=edit_product).grid(row=1, column=0, padx=5, pady=10)
 ttk.Button(products_buttons_frame, text="Restock Product", style="buttons.TButton",
            command=restock_product).grid(row=1, column=1, padx=5, pady=10)
+ttk.Button(products_buttons_frame, text="Reset Table", style="buttons.TButton",
+           command=refresh_products_table).grid(row=2, column=0, columnspan=2, padx=5, pady=10)
 
 products_name_frame = ttk.Frame(products_tab)
 products_name_frame.place(x=600, y=0, width="760", height="30")
@@ -915,6 +1135,34 @@ load_logo(products_tab)
 customers_name_frame = ttk.Frame(customers_tab)
 customers_name_frame.place(x=600, y=0, width="760", height="30")
 ttk.Label(customers_name_frame, text="Customers", style="heading_labels.TLabel").grid(row=0, column=0, padx=350, pady=0)
+
+search_customer_frame = ttk.Frame(customers_tab, style="sale_input_frame.TFrame")
+search_customer_frame.place(x=10, y=150, width="580", height="100")
+
+ttk.Label(search_customer_frame, text="Search Customer", style="labels.TLabel").grid(row=0, column=0, padx=5, pady=10)
+search_customer_entry = ttk.Entry(search_customer_frame, font=("Inter", 14))
+search_customer_entry.grid(row=0, column=1, padx=5, pady=10)
+ttk.Label(search_customer_frame, text="by", style="labels.TLabel").grid(row=1, column=0, padx=2, pady=10)
+customers_fields = ttk.Combobox(search_customer_frame,
+                                values=["Customer ID", "Customer Contact"],
+                                font=("Inter", 14))
+customers_fields.grid(row=1, column=1, padx=5, pady=10)
+ttk.Button(search_customer_frame, text="Search", style="buttons.TButton",
+           command=search_customer).grid(row=1, column=3, padx=5, pady=10)
+
+customers_buttons_frame = ttk.Frame(customers_tab, style="sale_input_frame.TFrame")
+customers_buttons_frame.place(x=60, y=280, width="490", height="200")
+
+ttk.Button(customers_buttons_frame, text="Today's Customers", style="buttons.TButton",
+           command=todays_customers).grid(row=0, column=0, padx=20, pady=20)
+ttk.Button(customers_buttons_frame, text="This Week's Customers", style="buttons.TButton",
+           command=weeks_customers).grid(row=0, column=1, padx=5, pady=10)
+ttk.Button(customers_buttons_frame, text="This Month's Customers", style="buttons.TButton",
+           command=months_customers).grid(row=1, column=0, padx=5, pady=10)
+ttk.Button(customers_buttons_frame, text="This Year's Customers", style="buttons.TButton",
+           command=years_customers).grid(row=1, column=1, padx=5, pady=10)
+ttk.Button(customers_buttons_frame, text="Reset Table", style="buttons.TButton",
+           command=refresh_customers_table).grid(row=2, column=0, columnspan=2, padx=5, pady=10)
 
 customers_table_frame = ttk.Frame(customers_tab, style="sale_input_frame.TFrame")
 customers_table_frame.place(x=600, y=30, width="760", height="624")
@@ -966,11 +1214,11 @@ sales_table.heading("customer_contact", text="Customer Contact")
 sales_table.heading("sale_date", text="Sale Date")
 sales_table.heading("sale_revenue", text="Sale Revenue")
 sales_table.heading("sale_profit", text="Sale Profit")
-sales_table.column("sale_id", width=46)
-sales_table.column("customer_contact", width=186)
-sales_table.column("sale_date", width=200)
-sales_table.column("sale_revenue", width=142)
-sales_table.column("sale_profit", width=142)
+sales_table.column("sale_id", width=45)
+sales_table.column("customer_contact", width=190)
+sales_table.column("sale_date", width=199)
+sales_table.column("sale_revenue", width=141)
+sales_table.column("sale_profit", width=141)
 
 sales_table.pack(side="left", fill="both", expand=True)
 

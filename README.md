@@ -6,7 +6,7 @@ How to run:
 
 3. Extract 'retail_management_system.zip'.
 
-4. Run 'retail_management_system.exe'.
+4. Run 'retail_management_system.exe'. If an antivirus marked the file as a threat, restore the file and run it.
 
 5. Login with username 'admin1' and password '1234' for full access or, login with username 'cashier1' and password '5678' for restricted access.
 

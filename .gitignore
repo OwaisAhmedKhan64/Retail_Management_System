@@ -2,6 +2,7 @@
 /__pycache__
 /dumps
 /sql_queries
+/resources
 main.py
 retail_management_system.exe
 retail_management_system.db

@@ -1,9 +1,15 @@
 How to run:
 
-1. Install Python (recommended versions 3.12 or 3.13) from https://www.python.org/downloads. Remember to check the box "Add python.exe to PATH".
+1. Go into releases.
 
-2. Set screen resolution at 1366 x 768.
+2. Download 'retail_management_system.zip'.
 
-3. Run main.py.
+3. Extract 'retail_management_system.zip'.
 
-4. Login with username: 'admin1' and password: '1234' for full access. Login with username: 'cashier1' and password: '1234' for restricted access till the Input Sale tab.
+4. Run 'retail_management_system.exe'. If an antivirus marked the file as a threat, restore the file and run it.
+
+5. Login with username 'admin1' and password '1234' for full access or, login with username 'cashier1' and password '5678' for restricted access.
+
+Note: 
+
+If you want to delete the existing records of customers and sales, delete 'retail_management_system.db' file. A new 'retail_management_system.db' file is automatically generated after running 'retail_management_system.exe'. The records of products and users remain the same.
